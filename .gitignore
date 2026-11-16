@@ -1,0 +1,31 @@
+# 依赖与运行时（体积大、可自行下载）
+runtime/
+node_modules/
+
+# 打包产物
+*.exe
+*.msi
+dist/
+setup-payload/
+payload.zip
+
+# 第三方引擎
+tools/filee/
+
+# 本机配置与运行数据
+config.json
+port.txt
+ui-data/
+导出/
+.edu/
+*.log
+
+# 备份
+*.bak*
+*.orig
+*.rej
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

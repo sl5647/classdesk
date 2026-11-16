@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>教学文件管理</title>
+<link rel="stylesheet" href="/style.css?v=98">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="/" title="返回工作台"><img class="logo" src="/icon.png?v=1" width="27" height="27" alt=""><span class="txt">教学文件管理</span></a>
+  <div class="searchbox">
+    <span class="ic">🔍</span>
+    <input id="q" placeholder="搜文件名，也能搜 Word / Excel / PPT 里的字" title="空格分隔多个关键词；也会搜文件名和正文">
+    <button class="ghost-clear" id="qClear" title="清空" style="display:none">✕</button>
+  </div>
+  <div class="top-actions">
+    <button class="btn primary" id="btnImport">＋ 导入文件</button>
+    <button class="btn" id="btnTools" title="重复文件 / 系列分组 / 导出清单">工具 ▾</button>
+    <button class="btn" id="btnScan" title="重新扫描库目录，索引新增/改动的文件">重建索引</button>
+    <button class="btn" id="btnTrash">回收站</button>
+    <button class="btn ghost" id="btnSettings" title="设置">⚙</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="side">
+    <h4>类型</h4>
+    <div id="facetGroups"></div>
+    <h4>智能标签</h4>
+    <div id="autoTags"></div>
+    <h4>标签</h4>
+    <div id="tagList"></div>
+    <div class="side-item" id="btnAddTag"><span style="color:var(--brand)">＋</span> 新建标签</div>
+    <h4>大小与时间</h4>
+    <div class="filters">
+      <input id="sizeMin" placeholder="最小 MB" inputmode="decimal">
+      <input id="sizeMax" placeholder="最大 MB" inputmode="decimal">
+      <input id="dateFrom" type="date" title="修改时间起">
+      <input id="dateTo" type="date" title="修改时间止">
+    </div>
+    <h4>我的视图</h4>
+    <div id="viewList"></div>
+    <div class="side-item" id="btnSaveView"><span style="color:var(--brand)">＋</span> 保存当前筛选</div>
+    <h4>收藏 / 最近</h4>
+    <div id="favList"></div>
+    <div id="recentList"></div>
+    <div class="side-item" id="btnClearFilters" style="margin-top:11px;color:var(--text-3)">清空筛选条件</div>
+  </aside>
+
+  <section class="listPane">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="list-bar">
+      <span class="summary" id="summary">加载中…</span>
+      <label class="muted" style="margin-left:auto">排序</label>
+      <select id="sort">
+        <option value="mtime">修改时间</option>
+        <option value="name">文件名</option>
+        <option value="size">大小</option>
+        <option value="ext">类型</option>
+        <option value="dir">所在文件夹</option>
+      </select>
+      <select id="order">
+        <option value="desc">↓ 降序</option>
+        <option value="asc">↑ 升序</option>
+      </select>
+      <select id="pageSize">
+        <option value="50">每页 50</option>
+        <option value="100" selected>每页 100</option>
+        <option value="200">每页 200</option>
+        <option value="500">每页 500</option>
+      </select>
+    </div>
+
+    <div class="batchbar" id="batchbar">
+      <span id="batchInfo">已选 0 项</span>
+      <button class="btn sm" id="bTag">打标签</button>
+      <button class="btn sm" id="bMove">移动到…</button>
+      <button class="btn sm" id="bRename">批量改名</button>
+      <button class="btn sm" id="bZip">打包下载</button>
+      <button class="btn sm danger" id="bDel">删除</button>
+      <button class="btn sm ghost" id="bClear">取消选择</button>
+    </div>
+
+    <div class="tableWrap" id="tableWrap">
+      <table class="files">
+        <thead id="fileHead">
+          <tr>
+            <th style="width:34px"><input type="checkbox" id="checkAll" title="全选本页"></th>
+            <th style="width:auto">文件名</th>
+            <th style="width:130px">所在文件夹</th>
+            <th style="width:96px">大小</th>
+            <th style="width:152px">修改时间</th>
+            <th style="width:150px">标签</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" style="display:none"></div>
+    </div>
+    <div class="list-bar" style="border-top:1px solid var(--line);border-bottom:0">
+      <button class="btn sm" id="prevPage">上一页</button>
+      <span class="muted" id="pageInfo"></span>
+      <button class="btn sm" id="nextPage">下一页</button>
+      <span class="muted" id="scanInfo" style="margin-left:auto;font-size:11.5px"></span>
+    </div>
+  </section>
+
+  <aside class="detail" id="detail">
+    <div class="pv-note">左边点一个文件，这里显示详情</div>
+  </aside>
+</main>
+
+<!-- 导入 -->
+<div class="mask" id="maskImport"><div class="dialog">
+  <header>导入文件<span style="margin-left:auto"></span><button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="hint" id="importHint">
+      从磁盘文件夹整批导入到库目录。也可以直接把文件或文件夹拖进窗口。
+    </div>
+    <div class="row">来源文件夹</div>
+    <div class="pickrow">
+      <input type="text" id="impSrc" placeholder="点右边按钮选一个文件夹，或把文件夹直接拖进窗口">
+      <button class="btn" type="button" id="impPick">选择文件夹…</button>
+    </div>
+    <label class="row"><input type="radio" name="impMode" value="copy" checked> 复制进库（原文件夹保留）</label>
+    <label class="row"><input type="radio" name="impMode" value="move"> 移动进库（原位置删掉）</label>
+    <label class="row"><input type="checkbox" id="impSkipJunk" checked> 跳过软件依赖文件（.dll .qm .pyd 等，通常没用）</label>
+    <label class="row"><input type="checkbox" id="impSkipZip" checked> 跳过 50MB 以上的压缩包</label>
+    <div class="progress" id="impProgress" style="display:none"><i></i></div>
+    <div class="hint" id="impStatus"></div>
+  </div>
+  <footer>
+    <button class="btn" data-close>关闭</button>
+    <button class="btn primary" id="impStart">开始导入</button>
+  </footer>
+</div></div>
+
+<!-- 改名 -->
+<div class="mask" id="maskRename"><div class="dialog">
+  <header>重命名<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <label class="row"><input type="text" id="renameInput"></label>
+    <div class="hint">扩展名一起改会改变文件类型，小心。</div>
+  </div>
+  <footer><button class="btn" data-close>取消</button><button class="btn primary" id="renameOk">保存</button></footer>
+</div></div>
+
+<!-- 移动 -->
+<div class="mask" id="maskMove"><div class="dialog">
+  <header>移动到…<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <label class="row">目标文件夹 <input type="text" id="moveDir" placeholder="留空 = 库根目录，可写新路径如 2024秋/考勤"></label>
+    <div class="hint">下面是已有的文件夹，点一下填入：</div>
+    <div id="moveFolders" style="max-height:260px;overflow:auto;margin-top:6px"></div>
+  </div>
+  <footer><button class="btn" data-close>取消</button><button class="btn primary" id="moveOk">移动</button></footer>
+</div></div>
+
+<!-- 打标签 -->
+<div class="mask" id="maskTag"><div class="dialog">
+  <header>打标签<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="hint" id="tagTarget"></div>
+    <div class="tagpick" id="tagPick" style="margin-top:8px"></div>
+    <div class="hint" style="margin-top:12px">新标签：</div>
+    <label class="row"><input type="text" id="newTagName" placeholder="比如：2024秋 / 考勤 / 待整理"></label>
+  </div>
+  <footer><button class="btn" id="tagRemove">移除所选标签</button><button class="btn" data-close>取消</button><button class="btn primary" id="tagOk">确定</button></footer>
+</div></div>
+
+<!-- 回收站 -->
+<div class="mask" id="maskTrash"><div class="dialog wide">
+  <header>回收站<button class="x" data-close>✕</button></header>
+  <div class="body"><div id="trashList"></div></div>
+  <footer><button class="btn" data-close>关闭</button></footer>
+</div></div>
+
+<!-- 工具 -->
+<div class="mask" id="maskTools"><div class="dialog" style="width:460px">
+  <header>工具<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="tool-list">
+      <button class="tool-item" id="toolDup"><i class="tico"><svg class="lic" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.2h10M6.4 5.2V3.6h3.2v1.6M4.6 5.2l.7 7.4h5.4l.7-7.4"/></svg></i><span class="ttxt"><b>重复文件检测</b><span>找出内容完全一样、只是文件名或位置不同的文件，一次清理</span></span><em>›</em></button>
+      <button class="tool-item" id="toolSeries"><i class="tico"><svg class="lic" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.6" width="4.6" height="4.6" rx="1"/><rect x="9.2" y="2.6" width="4.6" height="4.6" rx="1"/><rect x="2.2" y="8.8" width="4.6" height="4.6" rx="1"/><rect x="9.2" y="8.8" width="4.6" height="4.6" rx="1"/></svg></i><span class="ttxt"><b>系列分组</b><span>把「9月/10月/11月考勤」这类同系列文件归组，看有没有缺月</span></span><em>›</em></button>
+      <button class="tool-item" id="toolAtt"><i class="tico"><svg class="lic" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.6" width="11.6" height="10.8" rx="1.3"/><path d="M2.2 6h11.6M6 6v7.4M9.8 6v7.4"/></svg></i><span class="ttxt"><b>生成考勤表</b><span>选月份和星期几，填上名单，一键生成能打印的考勤表</span></span><em>›</em></button>
+      <button class="tool-item" id="toolConv"><i class="tico"><svg class="lic" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 5.4h7.2M7.4 3.2l2.6 2.2-2.6 2.2M13.4 10.6H6.2M8.6 12.8l-2.6-2.2 2.6-2.2"/></svg></i><span class="ttxt"><b>格式转换</b><span>Office 转 PDF、PDF 转图片，结果放在「导出」文件夹</span></span><em>›</em></button>
+      <button class="tool-item" id="toolExport"><i class="tico"><svg class="lic" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.4" y="2.6" width="11.2" height="10.8" rx="1.3"/><path d="M2.4 6.1h11.2M6.4 6.1v7.3"/></svg></i><span class="ttxt"><b>导出资料清单</b><span>按当前筛选结果导出 xlsx（文件名、位置、标签、备注）</span></span><em>›</em></button>
+    </div>
+  </div>
+  <footer><button class="btn" data-close>关闭</button></footer>
+</div></div>
+
+<!-- 重复文件 -->
+<div class="mask" id="maskDup"><div class="dialog wide">
+  <header>重复文件<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="hint" id="dupSummary">正在比对…</div>
+    <div id="dupList" style="max-height:440px;overflow:auto;margin-top:8px"></div>
+  </div>
+  <footer>
+    <button class="btn" data-close>关闭</button>
+    <button class="btn danger" id="dupDelete">把勾选的移到回收站</button>
+  </footer>
+</div></div>
+
+<!-- 系列分组 -->
+<div class="mask" id="maskSeries"><div class="dialog wide">
+  <header>系列分组<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="hint">同一文件夹里名字相近的文件会归成一组；月份区间内没凑齐的会标出来。</div>
+    <div id="seriesList" style="max-height:440px;overflow:auto;margin-top:8px"></div>
+  </div>
+  <footer><button class="btn" data-close>关闭</button></footer>
+</div></div>
+
+<!-- 批量改名 -->
+<div class="mask" id="maskBatchRename"><div class="dialog">
+  <header>批量改名<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="hint" id="brTarget"></div>
+    <div class="br-grid">
+      <label class="row">查找 <input type="text" id="brFind" placeholder="留空 = 不替换"></label>
+      <label class="row">替换为 <input type="text" id="brRep" placeholder="留空 = 删掉"></label>
+      <label class="row">前缀 <input type="text" id="brPrefix" placeholder="加在名字前面"></label>
+      <label class="row">后缀 <input type="text" id="brSuffix" placeholder="加在名字后面（扩展名之前）"></label>
+      <label class="row"><input type="checkbox" id="brSeq"> 加序号</label>
+      <label class="row">序号从 <input type="number" id="brSeqStart" value="1" min="1" style="width:80px"> 起，补零 <input type="number" id="brSeqPad" value="2" min="1" max="4" style="width:60px"> 位</label>
+      <label class="row"><input type="checkbox" id="brRegex"> 查找用正则表达式</label>
+    </div>
+    <div class="hint" style="margin-top:8px">预览（前 20 个）：</div>
+    <div id="brPreview" style="max-height:200px;overflow:auto;font-size:12px"></div>
+  </div>
+  <footer><button class="btn" data-close>取消</button><button class="btn primary" id="brOk">开始改名</button></footer>
+</div></div>
+
+<!-- 保存视图 -->
+<div class="mask" id="maskSaveView"><div class="dialog" style="width:420px">
+  <header>保存当前筛选<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <label class="row">名称 <input type="text" id="viewName" placeholder="比如：斗门26秋考勤"></label>
+    <div class="hint" id="viewQueryText"></div>
+  </div>
+  <footer><button class="btn" data-close>取消</button><button class="btn primary" id="viewOk">保存</button></footer>
+</div></div>
+
+<!-- 确认 -->
+<div class="mask" id="maskConfirm"><div class="dialog" style="width:400px">
+  <header>确认<button class="x" data-close>✕</button></header>
+  <div class="body"><div id="confirmText" class="hint"></div></div>
+  <footer><button class="btn" data-close>取消</button><button class="btn primary danger" id="confirmOk">确定</button></footer>
+</div></div>
+
+<!-- 设置 -->
+<div class="mask" id="maskSettings"><div class="dialog">
+  <header>设置<button class="x" data-close>✕</button></header>
+  <div class="body">
+    <label class="row">库目录 <input type="text" id="setRoot"></label>
+    <div class="hint">所有导入的文件都放这里，索引和回收站在库目录下的 .lib 里。<br>换目录后需要点“重建索引”。</div>
+    <div class="row">源文件夹</div>
+    <div class="pickrow">
+      <input type="text" id="setSource" placeholder="导入文件时默认从这里取">
+      <button class="btn" type="button" id="setPick">选择文件夹…</button>
+    </div>
+    <div class="hint">“导入文件”弹窗里会自动填这个路径，改这里不用再手打。</div>
+  </div>
+  <footer><button class="btn" data-close>取消</button><button class="btn danger" id="setQuit">退出程序</button><button class="btn primary" id="setOk">保存</button></footer>
+</div></div>
+
+<div class="drop-hint" id="dropHint">松手就导入到库</div>
+<div class="toast" id="toast"></div>
+
+<!-- 应用内文件夹选择器（不依赖系统对话框） -->
+<div class="ctx" id="ctxMenu"></div>
+
+<div class="mask" id="maskPick"><div class="dialog wide" style="width:660px">
+  <header>选择文件夹<button class="x" data-close>✕</button></header>
+  <div class="body" style="padding-bottom:0">
+    <div class="pickpath"><input id="pickPath" type="text" spellcheck="false" placeholder="可以直接粘贴路径，比如 D:\大华教育库 或某个 .xlsx 文件，按回车跳转"><button class="btn sm" id="pickGo">转到</button></div>
+    <div class="pickbody">
+      <div class="picknav" id="pickNav"></div>
+      <div class="picklist" id="pickList"></div>
+    </div>
+  </div>
+  <footer>
+    <span class="pickhint" id="pickHint">双击文件夹进去，选好后点右边按钮</span>
+    <button class="btn" data-close>取消</button>
+    <button class="btn primary" id="pickOk">选这个文件夹</button>
+  </footer>
+</div></div>
+
+<!-- 大号编辑器 -->
+<div class="mask" id="maskEditor"><div class="dialog editor">
+  <header>
+    <span id="edTitle">编辑</span>
+    <span class="edsub" id="edSub"></span>
+    <button class="x" data-close>✕</button>
+  </header>
+  <div class="body" id="edBody"></div>
+  <footer>
+    <span class="edhint" id="edHint"></span>
+    <button class="btn" id="edCancel" data-close>取消</button>
+    <button class="btn primary" id="edSave">保存</button>
+  </footer>
+</div></div>
+
+
+<!-- 生成考勤表 -->
+<div class="mask" id="maskAtt"><div class="dialog">
+  <header>生成考勤表<span style="margin-left:auto"></span><button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="attmode" id="attMode">
+      <button class="amode on" data-mode="student"><b>学生考勤表</b><span>按周上课，每次打勾</span></button>
+      <button class="amode" data-mode="teacher"><b>教师考勤表</b><span>一个月一张，按天</span></button>
+    </div>
+
+    <div id="attPlanBox">
+      <div class="row">我的方案 <span class="muted">（存一次，下个月点一下就生成）</span></div>
+      <div class="plan-list" id="planList"><div class="muted" style="padding:6px 2px">还没有方案。填好下面的内容，点右下角「存为方案」。</div></div>
+      <div class="plan-save">
+        <input id="planName" type="text" placeholder="方案名，例如：某某校区-机器人-周六">
+        <button class="btn sm" id="planSave">存为方案</button>
+      </div>
+    </div>
+
+    <div class="pickrow" id="attMonthRow">
+      <input type="text" id="attMonth" placeholder="2026-11 或 2026秋季" style="flex:0 0 110px">
+      <input type="text" id="attCourse" placeholder="课程名，如 机器人">
+      <input type="text" id="attOrg" placeholder="校区名称（可不填）">
+    </div>
+
+    <div class="apanel" id="paneStudent">
+      <div class="row">模板（可选：用你的 Excel 模板，按它的版式生成）</div>
+      <div class="pickrow">
+        <input type="text" id="attTplPath" placeholder="点右边选一个 .xlsx 模板">
+        <select id="attTplBuiltin" style="flex:0 0 190px;margin-left:6px" title="用软件自带的模板"></select>
+        <button class="btn" type="button" id="attTplPick">选择模板…</button>
+      </div>
+      <div class="hint" id="attTplInfo"></div>
+      <div class="pickrow" style="margin-top:6px">
+        <input type="text" id="attTutor" placeholder="班主任（填写后写进模板的「班主任：」处）">
+      </div>
+      <div class="attblocks" id="attBlocks" style="display:none"></div>
+      <div style="margin:6px 0 10px"><button class="btn sm" type="button" id="attAddBlock">＋ 添加一个班块</button></div>
+      <div id="attDaysRow">
+        <div class="row">哪几天上课（模板没有班块时才用这个）</div>
+        <div class="days" id="attDays"></div>
+      </div>
+      <div class="attdrop" id="attDrop">把名单或考勤照片拖到这里，自动识别学生<span class="muted">（png / jpg / bmp / webp / xlsx / csv / pdf）</span></div>
+      <div class="row" id="attNamesLabel">学生名单</div>
+      <textarea id="attNames" rows="5" placeholder="一行一个名字，例如：&#10;张三&#10;李四"></textarea>
+      <div id="attGridWrap" style="display:none">
+        <div id="attGridHead" class="muted" style="font-size:12px;margin:6px 0"></div>
+        <div class="attgrid"><table id="attGrid"></table></div>
+        <div style="margin-top:6px"><button class="btn sm" type="button" id="attAddRow">＋ 加一行</button> <span class="muted" style="font-size:12px">按模板检测到的列来填；序号会自动写</span></div>
+      </div>
+    </div>
+
+    <div class="apanel" id="paneTeacher" style="display:none">
+      <div class="row">本月假期 / 本月上班天数（上班天数留空＝按当月工作日自动算）</div>
+      <div class="pickrow">
+        <input type="text" id="attTHoliday" placeholder="本月假期（天）" style="flex:0 0 140px">
+        <input type="text" id="attTDuty" placeholder="本月上班天数（天，可空）" style="flex:0 0 180px">
+      </div>
+      <div class="row">老师名单（一行一个）</div>
+      <textarea id="attTNames" rows="5" placeholder="张三&#10;李四"></textarea>
+    </div>
+
+    <div class="hint">生成的文件会存到资料库根目录，文件名带年月，打开就能打印。</div>
+  </div>
+  <footer>
+    <button class="btn" data-close>取消</button>
+    <button class="btn primary" id="attOk">生成</button>
+  </footer>
+</div></div>
+
+<!-- 格式转换 -->
+<div class="mask" id="maskConv"><div class="dialog">
+  <header>格式转换<span style="margin-left:auto"></span><button class="x" data-close>✕</button></header>
+  <div class="body">
+    <div class="row">转成什么</div>
+    <div class="conv-ask">不知道选哪个？想打印发人就选 PDF，想发微信用图片，想继续改就选 Word / Excel。</div>
+    <div class="conv-chips" id="convChips"></div>
+    <div class="conv-search">
+      <input id="convSearch" type="text" placeholder="在下面的列表里筛：图片 / 视频 / 音乐 / 电子书 / 网页，或格式名 webp、mp3、epub">
+      <div class="conv-results" id="convResults"></div>
+    </div>
+    <div class="row" style="margin-top:12px">全部可选格式 <span class="muted" id="convAllCount"></span></div>
+    <div class="conv-all" id="convAll"></div>
+    <div class="row" style="margin-top:14px">影响的文件 <span class="muted" id="convCount"></span></div>
+    <div class="hint" id="convList"></div>
+    <div class="progress" id="convBar" style="display:none"><i></i></div>
+    <div class="hint" id="convHint"></div>
+  </div>
+  <footer>
+    <button class="btn" data-close>关闭</button>
+    <button class="btn primary" id="convStart">开始转换</button>
+  </footer>
+</div></div>
+
+<div class="taskbar" id="taskbar">
+  <div class="tb-head"><span id="tbTitle">格式转换</span><button class="tb-x" id="tbClose">✕</button></div>
+  <div class="tb-bar"><i id="tbFill"></i></div>
+  <div class="tb-line" id="tbLine"></div>
+  <div class="tb-actions">
+    <button class="btn sm" id="tbOpenFile">打开文件</button>
+    <button class="btn sm" id="tbOpenDir">打开文件夹</button>
+  </div>
+</div>
+
+<script src="/picker.js?v=16"></script>
+  <script src="/app.js?v=158"></script>
+</body>
+</html>

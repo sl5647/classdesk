@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>学员管理系统</title>
+<link rel="stylesheet" href="/students.css?v=10">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" title="返回工作台">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+    <span>学员管理系统</span>
+  </a>
+  <div class="search">
+    <input id="q" placeholder="搜姓名 / 电话 / 课程 / 班级 / 备注">
+  </div>
+  <div class="acts">
+    <button class="btn primary" id="btnAdd">＋ 新增学员</button>
+    <button class="btn" id="btnCourses">课程与费用</button>
+    <button class="btn" id="btnXlsx">导入 Excel</button>
+    <button class="btn" id="btnImport">批量粘贴</button>
+    <button class="btn" id="btnExport">导出 Excel(CSV)</button>
+  </div>
+</header>
+
+<section class="stats" id="stats"></section>
+
+<section class="filters">
+  <select id="fStatus">
+    <option value="">全部状态</option>
+    <option value="在读">在读</option>
+    <option value="停课">停课</option>
+    <option value="结业">结业</option>
+    <option value="退费">退费</option>
+  </select>
+  <select id="fCourse"><option value="">全部课程</option></select>
+  <select id="fPay">
+    <option value="">全部缴费</option>
+    <option value="diff">应收≠实收</option>
+      <option value="owe">有欠费</option>
+    <option value="clear">已缴清</option>
+  </select>
+  <span class="count" id="count"></span>
+</section>
+
+<section class="batch" id="batchBar" style="display:none">
+  <span>已选 <b id="selN">0</b> 名学员</span>
+  <button class="btn" id="btnBulk">批量修改…</button>
+  <button class="btn" id="btnGift">标记礼物已领</button>
+  <button class="btn danger" id="btnDelSel">删除所选</button>
+  <button class="btn" id="btnClearSel">取消选择</button>
+</section>
+
+<main class="list">
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th class="w-ck"><input type="checkbox" id="ckAll" title="全选"></th>
+        <th class="w-name">姓名</th>
+        <th class="w-sex">性别</th>
+        <th class="w-age">年龄</th>
+        <th class="w-phone">联系电话</th>
+        <th class="w-course">报读课程</th>
+        <th class="w-class">班级</th>
+        <th class="w-money">课程费用</th>
+        <th class="w-money">单价</th>
+        <th class="w-money">应收</th>
+        <th class="w-money">优惠</th>
+        <th class="w-money">实收</th>
+        <th class="w-money">欠费</th>
+        <th class="w-lesson">课时(已/总)</th>
+        <th class="w-pay">缴费</th>
+        <th class="w-gift">礼物</th>
+        <th class="w-status">状态</th>
+        <th class="w-op">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty" style="display:none">还没有学员。点右上角「＋ 新增学员」，或用「批量粘贴」一次导入。</div>
+</main>
+
+<!-- 学员编辑 -->
+<div class="mask" id="maskEdit">
+  <div class="dlg">
+    <header><span id="edTitle">新增学员</span><button class="x" data-close>✕</button></header>
+    <div class="body">
+      <div class="grid2">
+        <label>姓名 <input id="f_name" placeholder="必填"></label>
+        <label>性别
+          <select id="f_sex"><option value="">未填</option><option>男</option><option>女</option></select>
+        </label>
+        <label>年龄 <input id="f_age" inputmode="numeric" placeholder="如 9"></label>
+        <label>联系电话 <input id="f_phone" placeholder="家长或本人手机号"></label>
+        <label>家长/联系人 <input id="f_parent" placeholder="如 张三妈妈"></label>
+        <label>学校 <input id="f_school" placeholder="如 金湖小学"></label>
+        <label>年级 <input id="f_grade" placeholder="如 三年级"></label>
+        <label>班级 <input id="f_class" placeholder="如 203"></label>
+      </div>
+
+      <div class="sec">报读与费用</div>
+      <div class="grid2">
+        <label>报读课程
+          <input id="f_course" list="courseList" placeholder="选择或直接写">
+          <datalist id="courseList"></datalist>
+        </label>
+        <label>报名日期 <input id="f_enroll" type="date"></label>
+        <label>课程费用 <input id="f_fee" inputmode="decimal" placeholder="原价，如 1980"></label>
+        <label>优惠 <input id="f_discount" inputmode="decimal" placeholder="减免金额"></label>
+        <label>实收 <input id="f_paid" inputmode="decimal" placeholder="实际收到的钱"></label>
+        <label>学员状态
+          <select id="f_status">
+            <option>在读</option><option>停课</option><option>结业</option><option>退费</option>
+          </select>
+        </label>
+        <label>单价（元/课次）<input id="f_unit" inputmode="decimal" placeholder="留空=费用÷课次数"></label>
+        <label>每个课次=几课时 <input id="f_per" inputmode="decimal" placeholder="默认 2"></label>
+        <label>总课时 <input id="f_total" inputmode="numeric" placeholder="如 32"></label>
+        <label>已用课时 <input id="f_used" inputmode="numeric" placeholder="如 6"></label>
+        <label>礼物名称 <input id="f_gift" placeholder="如：拼装积木 / 助学红包"></label>
+        <label>礼物领取日期 <input id="f_giftAt" type="date"></label>
+      </div>
+      <div class="hint" id="calcHint"></div>
+
+      <label class="full">备注 <textarea id="f_note" rows="2" placeholder="如：转班、请假多、家长要求…"></textarea></label>
+    </div>
+    <footer>
+      <span class="del" id="btnDel">删除这名学员</span>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="btnSave">保存</button>
+    </footer>
+  </div>
+</div>
+
+
+<!-- 批量修改 -->
+<div class="mask" id="maskBulk">
+  <div class="dlg narrow">
+    <header>批量修改<b id="bulkN" class="muted" style="margin-left:6px;font-weight:400"></b><button class="x" data-close>✕</button></header>
+    <div class="body">
+      <p class="hint">选一个字段，填上新值，点「应用到选中的人」。金额和课时可以选「加上」。</p>
+      <div class="grid">
+        <label>改哪个字段
+          <select id="bulkField">
+            <option value="course">报读课程</option>
+            <option value="class">班级</option>
+            <option value="grade">年级</option>
+            <option value="school">学校</option>
+            <option value="sex">性别</option>
+            <option value="status">学员状态</option>
+            <option value="fee">课程费用</option>
+            <option value="discount">优惠</option>
+            <option value="paid">实收</option>
+            <option value="totalLessons">总课时</option>
+            <option value="usedLessons">已用课时</option>
+            <option value="gift">礼物名称</option>
+            <option value="giftAt">礼物领取日期</option>
+            <option value="note">备注</option>
+          </select>
+        </label>
+        <label>怎么改
+          <select id="bulkMode">
+            <option value="set">设为</option>
+            <option value="add">在这个数上加上</option>
+            <option value="clear">清空</option>
+          </select>
+        </label>
+        <label class="full">新的值
+          <select id="bulkChoice" style="display:none"></select>
+          <input id="bulkValue" placeholder="如：人工智能机器人 / 102 / 2026-11-14">
+        </label>
+      </div>
+      <div class="hint" id="bulkHint"></div>
+    </div>
+    <footer>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="bulkDo">应用到选中的人</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 课程与费用 -->
+<div class="mask" id="maskCourses">
+  <div class="dlg narrow">
+    <header>课程与标准费用<button class="x" data-close>✕</button></header>
+    <div class="body">
+      <p class="hint">把常用课程的 费用 / 单价（元/课次）/ 每课次课时 / 总课时 存在这里。给学员选课时自动带出来（已填的不覆盖）。</p>
+      <div class="course-add">
+        <input id="c_name" placeholder="课程名">
+        <input id="c_fee" inputmode="decimal" placeholder="费用">
+        <input id="c_unit" inputmode="decimal" placeholder="单价(课次)">
+        <input id="c_per" inputmode="decimal" placeholder="每课次课时">
+        <input id="c_lessons" inputmode="numeric" placeholder="总课时">
+        <button class="btn primary" id="c_add">添加</button>
+      </div>
+      <div id="courseRows"></div>
+    </div>
+    <footer><button class="btn" data-close>关闭</button></footer>
+  </div>
+</div>
+
+<!-- 批量粘贴 -->
+<div class="mask" id="maskImport">
+  <div class="dlg">
+    <header>批量粘贴学员<button class="x" data-close>✕</button></header>
+    <div class="body">
+      <p class="hint">一行一个学员，字段用逗号分隔，顺序：<b>姓名, 性别, 年龄, 电话, 课程, 课程费用, 实收, 班级</b>（后面的可以留空）。也可以直接从 Excel 里复制两列粘进来。</p>
+      <textarea id="impText" rows="10" placeholder="张三, 男, 9, 13700000001, 人工智能机器人, 1980, 1800, 203&#10;李四, 女, 8, 13700000002, 编程, 2400, 1000, 101"></textarea>
+      <div class="hint" id="impHint"></div>
+    </div>
+    <footer>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="impDo">导入</button>
+    </footer>
+  </div>
+</div>
+
+<div class="mask" id="maskXlsx">
+  <div class="dlg">
+    <header>导入 Excel 表格<button class="x" data-close>✕</button></header>
+    <div class="body">
+      <p class="hint">选一个 .xlsx / .xls / .csv 文件，软件会自己找表头（姓名、性别、年龄、电话、课程、费用、实收、班级…都认），列名不一样也能猜。</p>
+      <div class="filepick">
+        <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv">
+      </div>
+      <div id="xlsxInfo" class="hint"></div>
+      <div id="xlsxPreview"></div>
+    </div>
+    <footer>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="xlsxDo" disabled>确认导入</button>
+    </footer>
+  </div>
+</div>
+
+  <div class="mask" id="maskExport">
+    <div class="dialog" style="width:560px">
+      <header>导出学员名单<button class="x" data-close>✕</button></header>
+      <div class="body">
+        <p class="hint">导出全部字段：应收/实收/欠费、课时、缴费状态、礼物、备注等。</p>
+        <label class="row">文件名 <input id="ex_name" style="flex:1"></label>
+        <label class="row">格式
+          <select id="ex_fmt" style="width:180px">
+            <option value="xlsx">Excel（.xlsx）</option>
+            <option value="csv">CSV（.csv）</option>
+          </select>
+        </label>
+        <label class="row">导出到
+          <input id="ex_dir" style="flex:1" placeholder="留空 = 资料库里的「导出」文件夹">
+          <button class="btn" id="ex_pick" type="button">选择文件夹…</button>
+        </label>
+        <p class="hint" id="ex_hint"></p>
+      </div>
+      <footer>
+        <button class="btn" data-close>取消</button>
+        <button class="btn primary" id="ex_go">导出</button>
+      </footer>
+    </div>
+  </div>
+<script src="/picker.js?v=16"></script>
+<script src="/students.js?v=30"></script>
+</body>
+</html>
